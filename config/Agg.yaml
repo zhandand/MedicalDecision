@@ -1,0 +1,61 @@
+# train_valid, test
+pipeline: ['train_valid','test']
+# pipeline: ['test']
+gpus: 0
+epochs: 5
+seed: 31
+
+add_sources:
+  # load_ontology, load ddi
+  type: ["vocab"]
+  data_path: ["/home/gzzhan/data/MIMIC3/gamenet/voc_final.pkl"]
+
+model:
+  name: "Agg"
+  save_path: "/home/gzzhan/projects/MedicalDecision/output/CL_baseline/random_embdding/2/epoch=9-step=909.ckpt"
+  # 预训练embedding
+  # from_pretrained: /home/gzzhan/projects/MedicalDecision/output/CL_pretrain/test/2/epoch=31-step=106655.ckpt
+  dim: 256
+  criterion: "CE"
+  metric: ["f1","jaccard","PRAUC"]
+
+data:
+  path: "/home/gzzhan/data/MIMIC3/gamenet/records_final.pkl"
+  # 决定数据组织的方式，the input of medication recommendation is diagnose, output is medication
+  #                   the input of diagnose prediction is diagnose or what
+  target: "longitude_med_rec" 
+  need_single: False
+  num_workers: 20
+  batch_size: 1
+  shuffle: false
+  split:
+    train_ratio: 0.6667
+    valid_ratio: 0.16665
+    test_ratio: 0.16665
+
+automatic_optimization: True
+
+output: /output/
+
+Callbacks: 
+  EarlyStopping:
+    monitor: PRAUC
+    min_delta: 0.00
+    patience: 20
+    verbose: true
+    mode: max
+  ModelCheckpoint:
+    monitor: PRAUC
+    mode: max
+
+optimizer:
+  Adam:
+    # momentum : 0.96
+    lr: !!float 3e-4
+    weight_decay: !!float 1e-5
+
+mlflow:
+  experiment: "CL_baseline"
+  # experiment: "test"
+  run_name: "random_embdding"
+  
