@@ -40,12 +40,10 @@ class Agg(nn.Module):
             med = torch.cat(history[times][2])
             past_diag = torch.mean(self.diag_embedding(diag),axis = 0)
             past_med = torch.mean(self.med_embedding(med),axis = 0)
-            import pdb
-            pdb.set_trace()
             diag_emb.append(past_diag)
-            med_emb += past_med
-        diag_emb /= visitTimes-1
-        med_emb /= visitTimes-1
+            med_emb.append(past_med) 
+        diag_emb = torch.stack(diag_emb).mean(dim=0)
+        med_emb = torch.stack(med_emb).mean(dim=0)
 
         cur_diag = torch.cat(history[visitTimes-1][0])
         cur_diag_emb = torch.mean(self.diag_embedding(cur_diag),axis = 0)

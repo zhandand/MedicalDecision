@@ -1,5 +1,5 @@
 import numpy as np
-from sklearn.metrics import jaccard_similarity_score, roc_auc_score, precision_score, f1_score, average_precision_score
+from sklearn.metrics import jaccard_score, roc_auc_score, precision_score, f1_score, average_precision_score
 
 # 对所有病人求jaccard
 def jaccard(y_gt, y_pred):

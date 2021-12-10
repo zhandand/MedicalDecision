@@ -28,7 +28,7 @@ class MedDec(pl.LightningModule):
         x, y = batch
         y_hat = self.model(x)
         if self.kwargs['model']['criterion'] == 'CE' or self.kwargs['model']['criterion'] == 'MSE':
-            loss = self.criterion()(y_hat, y)
+            loss = self.criterion()(y_hat, y.float())
         elif self.kwargs['model']['criterion'] == 'InfoNCE':
             loss = self.criterion()(y_hat, self.kwargs['model']['t'],y,self.resource['pmd'][x,y])
 
@@ -58,7 +58,7 @@ class MedDec(pl.LightningModule):
         x, y = batch
         y_hat = self.model(x)
         if self.kwargs['model']['criterion'] == 'CE' or self.kwargs['model']['criterion'] == 'MSE':
-            loss = self.criterion()(y_hat, y)
+            loss = self.criterion()(y_hat, y.float())
         elif self.kwargs['model']['criterion'] == 'InfoNCE':
             loss = self.criterion()(y_hat, self.kwargs['model']['t'],y,self.resource['pmd'][x,y]) 
         # self.log("val_loss", loss)
@@ -80,7 +80,7 @@ class MedDec(pl.LightningModule):
         self.log_metrics("val_",** metrics)
         if 'ModelCheckpoint' in self.kwargs['Callbacks']:
             monitor = self.kwargs['Callbacks']['ModelCheckpoint']['monitor'] 
-            if monitor[:3] == 'val':
+            if 'train' not in monitor:
                 self.log(monitor, metrics[monitor], on_step=False,
                     on_epoch=True, prog_bar=True, logger=True)
         # self.log("val_loss", avg_loss, on_step=False,
@@ -89,7 +89,7 @@ class MedDec(pl.LightningModule):
     def test_step(self, batch, batch_idx):
         x, y = batch
         y_hat = self.model(x)
-        loss = self.criterion()(y_hat, y)
+        loss = self.criterion()(y_hat, y.float())
         return {"loss": loss,
                 "pred": y_hat,
                 'label': y}
@@ -107,8 +107,8 @@ class MedDec(pl.LightningModule):
 
     def criterion(self):
         if self.kwargs['model']['criterion'] == 'CE':
-            from torch.nn.functional import cross_entropy
-            return cross_entropy
+            from torch.nn.functional import binary_cross_entropy
+            return binary_cross_entropy
         elif self.kwargs['model']['criterion'] == 'MSE':
             from torch.nn.functional import mse_loss
             return mse_loss

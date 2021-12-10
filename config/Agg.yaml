@@ -8,7 +8,7 @@ seed: 31
 add_sources:
   # load_ontology, load ddi
   type: ["vocab"]
-  data_path: ["/home/gzzhan/data/MIMIC3/gamenet/voc_final.pkl"]
+  data_path: ["/mnt/4ta/gzzhan/data/MIMIC3/gamenet/voc_final.pkl"]
 
 model:
   name: "Agg"
@@ -20,12 +20,12 @@ model:
   metric: ["f1","jaccard","PRAUC"]
 
 data:
-  path: "/home/gzzhan/data/MIMIC3/gamenet/records_final.pkl"
+  path: "/mnt/4ta/gzzhan/data/MIMIC3/gamenet/records_final.pkl"
   # 决定数据组织的方式，the input of medication recommendation is diagnose, output is medication
   #                   the input of diagnose prediction is diagnose or what
   target: "longitude_med_rec" 
   need_single: False
-  num_workers: 20
+  num_workers: 0
   batch_size: 1
   shuffle: false
   split:
