@@ -1,8 +1,11 @@
 import mlflow
+import numpy as np
 import pytorch_lightning as pl
 import torch
 from torch.optim import SGD, Adam
+
 from utils import to_device
+
 
 class MedDec(pl.LightningModule):
     def __init__(self, *args):
@@ -123,10 +126,10 @@ class MedDec(pl.LightningModule):
         for metric in self.kwargs['model']['metric']:
             if metric == 'f1':
                 from metric import average_f1
-                metrics[metric] = average_f1(labels, preds)
+                metrics[metric] = average_f1(labels, np.rint(preds))    # 计算f1需要threshold取整
             if metric == 'jaccard':
                 from metric import jaccard
-                metrics[metric] = jaccard(labels, preds)
+                metrics[metric] = jaccard(labels, np.rint(preds))       # 计算jaccard需要threshold取整
             if metric == 'PRAUC':
                 from metric import precision_auc
                 metrics[metric] = precision_auc(labels, preds)
@@ -149,3 +152,8 @@ class MedDec(pl.LightningModule):
         for metric in metrics.keys():
             mlflow.log_metric(key=prefix + metric,
                               value=metrics[metric], step=self.current_epoch)
+
+    def round(self, data, threshold):
+        data[data>=threshold] = 1
+        data[data<threshold] = 0
+        return data

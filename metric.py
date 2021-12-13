@@ -45,8 +45,8 @@ def average_f1(y_gt, y_pred):
         if prc[idx] + recall[idx] == 0:
             score.append(0)
         else:
-        	score.append( 
-            	2*prc[idx]*recall[idx] / (prc[idx] + recall[idx]))
+            score.append( 
+                2*prc[idx]*recall[idx] / (prc[idx] + recall[idx]))
     return np.mean(score)
 
 def f1(y_gt, y_pred):

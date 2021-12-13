@@ -2,7 +2,7 @@
 pipeline: ['train_valid','test']
 # pipeline: ['test']
 gpus: 0
-epochs: 5
+epochs: 100
 seed: 31
 
 add_sources:
