@@ -9,6 +9,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from model.DMCL import DMCL
 
 class Agg(nn.Module):
     def __init__(self,*args):
@@ -17,9 +18,11 @@ class Agg(nn.Module):
         med_voc = args[1]['vocab']['med_voc']
         self.dim = args[0]['dim']
         # TODO: 加入预训练embedding
-        if 'from_pretrained' in args[0].keys():
-            self.diag_embedding = nn.Embedding.from_pretrained(args[0]['from_pretrained']['diag'])
-            self.med_embedding = nn.Embedding.from_pretrained(args[0]['from_pretrained']['med'])
+        if 'pretrain' in args[0].keys():
+            pretrain_model = args[0]['pretrain'].model
+            # 默认为DMCL
+            self.diag_embedding = pretrain_model.diag_embedding
+            self.med_embedding = pretrain_model.med_embedding
         else:
             self.diag_embedding = nn.Embedding(len(diag_voc.idx2word),self.dim)
             self.med_embedding = nn.Embedding(len(med_voc.idx2word),self.dim)

@@ -36,7 +36,7 @@ class MedDec(pl.LightningModule):
             loss = self.criterion()(y_hat, self.kwargs['model']['t'],y,self.resource['pmd'][x,y])
 
         return {"loss": loss,
-                "pred": y_hat,
+                "pred": y_hat.detach(),
                 'label': y}
 
     def training_epoch_end(self, outputs):
@@ -66,7 +66,7 @@ class MedDec(pl.LightningModule):
             loss = self.criterion()(y_hat, self.kwargs['model']['t'],y,self.resource['pmd'][x,y]) 
         # self.log("val_loss", loss)
         return {"loss": loss,
-                "pred": y_hat,
+                "pred": y_hat.detach(),
                 'label': y}
 
     def validation_epoch_end(self, outputs):

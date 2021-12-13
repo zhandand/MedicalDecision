@@ -6,7 +6,7 @@
 
 import pytorch_lightning as pl
 
-from utils import load_sources, load_from_ckpt
+from utils import load_sources, load_from_ckpt, read_config
 from Callbacks import loadCallbacks
 from DataModule import MedicalDataModule
 from MedDec import MedDec
@@ -14,6 +14,11 @@ import torch
 
 def train_valid_pipeline(**kwargs):
     sources = load_sources(kwargs['gpus'], **kwargs['add_sources'])
+    if 'pretrain' in kwargs.keys():                # 加载预训练模型
+        pretrain_configs = read_config(kwargs['pretrain']['config_path'])
+        pretrain_model = MedDec(pretrain_configs,sources)
+        load_from_ckpt(kwargs['pretrain']['save_path'], pretrain_model)
+        kwargs['model']['pretrain'] = pretrain_model
     model = MedDec(kwargs,sources)                  # 加入额外的知识源
     callbacks = loadCallbacks(kwargs['Callbacks'])
     # turn validation before training off

@@ -5,6 +5,10 @@ gpus: 0
 epochs: 100
 seed: 31
 
+pretrain:
+  config_path: "/mnt/4ta/gzzhan/projects/MedicalDecision/config/DMCL.yaml"
+  save_path: "/mnt/4ta/gzzhan/projects/MedicalDecision/output/CL_pretrain/test/4/epoch=10-step=36662.ckpt"
+
 add_sources:
   # load_ontology, load ddi
   type: ["vocab"]
@@ -15,7 +19,7 @@ model:
   save_path: "/home/gzzhan/projects/MedicalDecision/output/CL_baseline/random_embdding/2/epoch=9-step=909.ckpt"
   # 预训练embedding
   # from_pretrained: /home/gzzhan/projects/MedicalDecision/output/CL_pretrain/test/2/epoch=31-step=106655.ckpt
-  dim: 256
+  dim: 512
   criterion: "CE"
   metric: ["f1","jaccard","PRAUC"]
 
@@ -57,5 +61,5 @@ optimizer:
 mlflow:
   experiment: "CL_baseline"
   # experiment: "test"
-  run_name: "random_embdding"
+  run_name: "finetune"
   
