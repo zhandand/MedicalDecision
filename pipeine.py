@@ -28,6 +28,8 @@ def train_valid_pipeline(**kwargs):
     kwargs['trainer'] = trainer
     if "ModelCheckpoint" in callbacks.keys():
         kwargs['model']['save_path'] = callbacks['ModelCheckpoint'].best_model_path
+    if 'pretrain' in kwargs.keys():
+        del kwargs['model']['pretrain']
 
 def test_pipeline(**kwargs):
     sources = load_sources(kwargs['gpus'], **kwargs['add_sources'])
