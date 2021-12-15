@@ -104,6 +104,7 @@ class MedDec(pl.LightningModule):
         labels = torch.stack([x['label'] for x in outputs]
                              ).squeeze().data.cpu().numpy()
 
+        self.save_preds(preds,labels)
         mlflow.log_metric(key="test_loss", value=avg_loss)
         metrics = self.calMetric(preds, labels)
         self.log_metrics("test_", **metrics)
@@ -154,6 +155,18 @@ class MedDec(pl.LightningModule):
                               value=metrics[metric], step=self.current_epoch)
 
     def round(self, data, threshold):
+        """计算 f1, jaccard等指标时需要取整
+
+        Args:
+            data ([type]): 需要取整的数据
+            threshold ([type]): 阈值
+
+        Returns:
+            [type]: 取整后的数据
+        """
         data[data>=threshold] = 1
         data[data<threshold] = 0
         return data
+
+    def save_preds(self,preds,labels):
+        np.savez(self.kwargs['run_path']+'PREDS',preds = preds,labels = labels)
