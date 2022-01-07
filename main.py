@@ -4,11 +4,11 @@ import os
 import mlflow
 import pytorch_lightning as pl
 
-from pipeine import train_valid_pipeline,test_pipeline
+from pipeine import train_valid_pipeline,test_pipeline, train_pipeline
 from utils import mk_rundir, read_config, save_config
 
 pipeline_dict = {
-    'train' : "train_pipeline",
+    'train' : train_pipeline,
     'test' : test_pipeline,
     'train_valid' : train_valid_pipeline
 }

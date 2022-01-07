@@ -1,0 +1,70 @@
+# train_valid, test
+pipeline: ['train']
+# pipeline: ['train_valid']
+gpus: 0
+epochs: 200
+seed: 31
+
+add_sources:
+  # load_ontology, load ddi
+  type: ["vocab" ]
+  data_path: ["/mnt/4ta/gzzhan/data/MIMIC3/processed/voc_final.pkl"]
+
+model:
+  name: "GCC"
+  gnn:
+    encoder: gin
+    config:
+      num_layers: 3
+      emb_dim: 100 
+      JK: 'last'
+      dropout: 0.5
+      readout: 'sum'
+      n_tasks: 1
+  criterion: "NCESoftmaxLoss"
+  t: 1
+  metric: []
+
+data:
+  path: "/mnt/4ta/gzzhan/projects/MedicalDecision/analysis/result/subgraph/ehr_adj_final.pkl"
+  # 决定数据组织的方式，the input of medication recommendation is diagnose, output is medication
+  #                   the input of diagnose prediction is diagnose or what
+  target: "cl_pretrain" 
+  need_single: False
+  num_workers: 0
+  shuffle: True
+  batch_size: 16
+  split:
+    train_ratio: 0.99
+    valid_ratio: 0.001
+    test_ratio: 0.001
+  gcc:
+    hops: 10
+    restart_prob: 0.1
+
+automatic_optimization: True
+
+output: /output/
+
+Callbacks: 
+  EarlyStopping:
+    monitor: train_loss
+    min_delta: 0.00
+    patience: 20
+    verbose: true
+    mode: min
+  ModelCheckpoint:
+    monitor: train_loss
+    mode: min
+
+optimizer:
+  Adam:
+    # momentum : 0.96
+    lr: !!float 3e-4
+    weight_decay: !!float 1e-5
+
+mlflow:
+  experiment: "GCC_pretrain"
+  # experiment: "test"
+  run_name: "test"
+  

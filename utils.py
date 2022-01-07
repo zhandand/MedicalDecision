@@ -2,11 +2,13 @@ import os
 import random
 from typing import List
 
-import torch
+import dgl
 import dill
 import numpy as np
+import torch
 import yaml
 from sklearn.model_selection import train_test_split
+from MedDec import MedDec
 
 
 def read_config(config_path):
@@ -111,25 +113,25 @@ def id2multihot(ids: List[int], vocab_size: int):
     Returns:
             [type]: multihot vector
     """
-    multi_hot = np.zeros(vocab_size)
-    multi_hot[ids] = 1
-    return multi_hot
+    multi_hot = np.zeros(vocab_size, dtype=float)
+    multi_hot[ids] = 1.0
+    return multi_hot.astype('float32')
 
 
-def load_sources(gpu,**configs):
+def load_sources(gpu, **configs):
     assert len(configs['type']) == len(configs['data_path'])
     sources = {}
     for item in zip(configs['type'], configs['data_path']):
         if os.path.splitext(item[1])[-1] == '.pkl':
             sources[item[0]] = read_pkl(item[1])
         elif os.path.splitext(item[1])[-1] == '.npy':
-            sources[item[0]] = to_device(read_npy(item[1]),gpu)
+            sources[item[0]] = to_device(read_npy(item[1]), gpu)
     print("Load additional sources done...")
     return sources
 
 
 def to_device(data, gpu):
-    if isinstance(data,np.ndarray):
+    if isinstance(data, np.ndarray):
         data = torch.from_numpy(data)
         device = torch.device("cuda:"+str(gpu))
         return data.to(device)
@@ -138,5 +140,24 @@ def to_device(data, gpu):
 
 
 def load_from_ckpt(ckpt_path, model):
-    checkpoint = torch.load(ckpt_path, map_location=lambda storage, loc: storage)
+    checkpoint = torch.load(
+        ckpt_path, map_location=lambda storage, loc: storage)
     model.load_state_dict(checkpoint['state_dict'])
+
+def load_pretrain(*args):
+    # 加载预训练模型
+    kwargs = args[0]
+    sources = args[1]
+    pretrain_configs = read_config(kwargs['config_path'])
+    pretrain_model = MedDec(pretrain_configs, sources)
+    load_from_ckpt(kwargs['save_path'], pretrain_model)
+    return pretrain_model
+
+def graph_batcher():
+    # 为gcc的batch到训练部分前的操作
+    def batcher_dev(batch):
+        graph_q, graph_k = zip(*batch)
+        graph_q, graph_k = dgl.batch(graph_q), dgl.batch(graph_k)
+        return graph_q, graph_k
+
+    return batcher_dev

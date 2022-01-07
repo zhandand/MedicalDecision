@@ -4,6 +4,8 @@
 # @Project    : gzzhan
 # @Description:  根据不同的任务设置不同的dataset
 
+import dgl
+import numpy as np
 import torch
 from torch.utils.data import Dataset
 
@@ -66,14 +68,39 @@ class LongitudeMedRecDataset(Dataset):
         # history, med(multi-hot)
         return visit, id2multihot(visit[len(visit)-1][2], len(self.vocab["med_voc"].idx2word))
 
+
 class MDCLDataset(Dataset):
     # 药物和疾病的正例索引
     def __init__(self, pairs):
         self.pairs = pairs
-    
+
     def __len__(self):
         return len(self.pairs)
-    
-    def __getitem__(self,index):
+
+    def __getitem__(self, index):
         diag, med = self.pairs[index]
         return diag, med
+
+
+class GCCCLDataset(Dataset):
+    # 使用GCC方法，从同一个节点采样得到子图作为正例
+    def __init__(self, cooccur, hops, restart_prob) -> None:
+        super(GCCCLDataset).__init__()
+        pos = np.where(cooccur == 1)
+        self.g = dgl.graph((torch.tensor(pos[0]), torch.tensor(pos[1])))
+        self.g.ndata['feats'] = torch.rand(self.g.nodes().shape[0],100)
+        self.hops = hops
+        self.restart_prob = restart_prob
+
+    def __len__(self):
+        return self.g.nodes().shape[0]
+
+    def __getitem__(self, index):
+        traces, types = dgl.sampling.random_walk(
+            self.g, [index, index], length=self.hops, restart_prob=self.restart_prob)
+        concat_vids, concat_types, lengths, offsets = dgl.sampling.pack_traces(
+            traces, types)
+        vids = concat_vids.split(lengths.tolist())
+        graph_q = self.g.subgraph(vids[0])
+        graph_k = self.g.subgraph(vids[1])
+        return graph_q.to('cuda:0'), graph_k.to('cuda:0')

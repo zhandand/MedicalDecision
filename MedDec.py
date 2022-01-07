@@ -4,8 +4,6 @@ import pytorch_lightning as pl
 import torch
 from torch.optim import SGD, Adam
 
-from utils import to_device
-
 
 class MedDec(pl.LightningModule):
     def __init__(self, *args):
@@ -14,7 +12,7 @@ class MedDec(pl.LightningModule):
         self.resource = args[1]
         self.model_name = self.kwargs['model']['name']
         exec('from model.' + self.model_name + " import "+self.model_name)
-        self.model = eval(self.model_name)(self.kwargs['model'],self.resource)
+        self.model = eval(self.model_name)(self.kwargs['model'], self.resource)
         self.automatic_optimization = self.kwargs['automatic_optimization']
         print("init model done...")
 
@@ -28,13 +26,14 @@ class MedDec(pl.LightningModule):
             batch ([type]): [description]
             batch_idx ([type]): [description]
         """
-        x, y = batch
-        y_hat = self.model(x)
+        y_hat, y = self.train_in_model(batch, batch_idx)
         if self.kwargs['model']['criterion'] == 'CE' or self.kwargs['model']['criterion'] == 'MSE':
-            loss = self.criterion()(y_hat, y.float())
-        elif self.kwargs['model']['criterion'] == 'InfoNCE':
-            loss = self.criterion()(y_hat, self.kwargs['model']['t'],y,self.resource['pmd'][x,y])
-
+            # loss = self.criterion()(y_hat, y.float())
+            loss = self.criterion()(y_hat, y)
+        # elif self.kwargs['model']['criterion'] == 'InfoNCE':
+        #     loss = self.criterion()(y_hat, self.kwargs['model']['t'],y,self.resource['pmd'][x,y])
+        elif self.kwargs['model']['criterion'] == 'NCESoftmaxLoss':
+            loss = self.criterion()(y_hat, y)
         return {"loss": loss,
                 "pred": y_hat.detach(),
                 'label': y}
@@ -58,12 +57,14 @@ class MedDec(pl.LightningModule):
         # self.calMetric(preds,labels)
 
     def validation_step(self, batch, batch_idx):
-        x, y = batch
-        y_hat = self.model(x)
+        y_hat, y = self.train_in_model(batch, batch_idx)
         if self.kwargs['model']['criterion'] == 'CE' or self.kwargs['model']['criterion'] == 'MSE':
-            loss = self.criterion()(y_hat, y.float())
-        elif self.kwargs['model']['criterion'] == 'InfoNCE':
-            loss = self.criterion()(y_hat, self.kwargs['model']['t'],y,self.resource['pmd'][x,y]) 
+            # loss = self.criterion()(y_hat, y.float())
+            loss = self.criterion()(y_hat, y)
+        # elif self.kwargs['model']['criterion'] == 'InfoNCE':
+        #     loss = self.criterion()(y_hat, self.kwargs['model']['t'],y,self.resource['pmd'][x,y])
+        elif self.kwargs['model']['criterion'] == 'NCESoftmaxLoss':
+            loss = self.criterion()(y_hat, y)
         # self.log("val_loss", loss)
         return {"loss": loss,
                 "pred": y_hat.detach(),
@@ -80,12 +81,12 @@ class MedDec(pl.LightningModule):
         metrics = self.calMetric(preds, labels)
         metrics['val_loss'] = avg_loss
 
-        self.log_metrics("val_",** metrics)
+        self.log_metrics("val_", ** metrics)
         if 'ModelCheckpoint' in self.kwargs['Callbacks']:
-            monitor = self.kwargs['Callbacks']['ModelCheckpoint']['monitor'] 
+            monitor = self.kwargs['Callbacks']['ModelCheckpoint']['monitor']
             if 'train' not in monitor:
                 self.log(monitor, metrics[monitor], on_step=False,
-                    on_epoch=True, prog_bar=True, logger=True)
+                         on_epoch=True, prog_bar=True, logger=True)
         # self.log("val_loss", avg_loss, on_step=False,
         #          on_epoch=True, prog_bar=True, logger=True)
 
@@ -104,10 +105,10 @@ class MedDec(pl.LightningModule):
         labels = torch.stack([x['label'] for x in outputs]
                              ).squeeze().data.cpu().numpy()
 
-        self.save_preds(preds,labels)
+        self.save_preds(preds, labels)
         mlflow.log_metric(key="test_loss", value=avg_loss)
         metrics = self.calMetric(preds, labels)
-        self.log_metrics("test_", **metrics)
+        self.log_metrics("", **metrics)
 
     def criterion(self):
         if self.kwargs['model']['criterion'] == 'CE':
@@ -119,7 +120,10 @@ class MedDec(pl.LightningModule):
         elif self.kwargs['model']['criterion'] == 'InfoNCE':
             from loss import InfoNCE
             return InfoNCE
-        else :
+        elif self.kwargs['model']['criterion'] == 'NCESoftmaxLoss':
+            from loss import NCESoftmaxLoss
+            return NCESoftmaxLoss
+        else:
             raise NotImplementedError('This loss not defined')
 
     def calMetric(self, preds, labels):
@@ -127,10 +131,12 @@ class MedDec(pl.LightningModule):
         for metric in self.kwargs['model']['metric']:
             if metric == 'f1':
                 from metric import average_f1
-                metrics[metric] = average_f1(labels, np.rint(preds))    # 计算f1需要threshold取整
+                metrics[metric] = average_f1(
+                    labels, np.rint(preds))    # 计算f1需要threshold取整
             if metric == 'jaccard':
                 from metric import jaccard
-                metrics[metric] = jaccard(labels, np.rint(preds))       # 计算jaccard需要threshold取整
+                metrics[metric] = jaccard(labels, np.rint(
+                    preds))       # 计算jaccard需要threshold取整
             if metric == 'PRAUC':
                 from metric import precision_auc
                 metrics[metric] = precision_auc(labels, preds)
@@ -139,17 +145,17 @@ class MedDec(pl.LightningModule):
 
     def configure_optimizers(self):
         self.opimizer_config = self.kwargs['optimizer']
-        if 'Adam' in self.opimizer_config.keys() :
+        if 'Adam' in self.opimizer_config.keys():
             # self.lr = self.opimizer_config['lr']
             # self.weight_decay = self.opimizer_config['weight_decay']
             return Adam(self.model.parameters(), **self.kwargs['optimizer']['Adam'])
-        elif 'SGD' in self.opimizer_config['type'] :
+        elif 'SGD' in self.opimizer_config['type']:
             # self.lr = self.opimizer_config['lr']
             # self.weight_decay = self.opimizer_config['weight_decay']
             # self.momentum = self.opimizer_config['momentum']
-            return SGD(self.model.parameters(),**self.kwargs['optimizer']['SGD'])
+            return SGD(self.model.parameters(), **self.kwargs['optimizer']['SGD'])
 
-    def log_metrics(self, prefix:str,**metrics:dict):
+    def log_metrics(self, prefix: str, **metrics: dict):
         for metric in metrics.keys():
             mlflow.log_metric(key=prefix + metric,
                               value=metrics[metric], step=self.current_epoch)
@@ -164,9 +170,21 @@ class MedDec(pl.LightningModule):
         Returns:
             [type]: 取整后的数据
         """
-        data[data>=threshold] = 1
-        data[data<threshold] = 0
+        data[data >= threshold] = 1
+        data[data < threshold] = 0
         return data
 
-    def save_preds(self,preds,labels):
-        np.savez(self.kwargs['run_path']+'PREDS',preds = preds,labels = labels)
+    def save_preds(self, preds, labels):
+        np.savez(self.kwargs['run_path']+'PREDS', preds=preds, labels=labels)
+
+    def train_in_model(self, batch, batch_idx):
+        # 由于不同的模型的batch和输入不同，为了统一接口，在此函数中进行逻辑处理
+        if self.model_name == "GCC":
+            graph_q, graph_k = batch
+            feat_q = self.model(graph_q, graph_q.ndata['feats'])
+            feat_k = self.model(graph_k, graph_k.ndata['feats'])
+            return feat_q, feat_k
+        else:
+            x, y = batch
+            y_hat = self.model(x)
+            return y_hat, y

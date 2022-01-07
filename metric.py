@@ -15,6 +15,7 @@ def jaccard(y_gt, y_pred):
 
 # 精确率
 def average_prc(y_gt, y_pred):
+    # 预测对的占预测药物总数的大小
 	score = []
 	for b in range(y_gt.shape[0]):
 		target = np.where(y_gt[b] == 1)[0]
@@ -26,6 +27,7 @@ def average_prc(y_gt, y_pred):
 
 # 召回率
 def average_recall(y_gt, y_pred):
+    # 预测对的占ground truth总数的大小
 	score = []
 	for b in range(y_gt.shape[0]):
 		target = np.where(y_gt[b] == 1)[0]
