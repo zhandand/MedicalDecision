@@ -5,11 +5,15 @@
 # @Description:  dataloader
 
 import os
+
 import numpy as np
 import pytorch_lightning as pl
-from utils import split, read_pkl, read_npy, graph_batcher
-from Dataset import MedRecommendDataset, LongitudeMedRecDataset, MDCLDataset, GCCCLDataset
-from torch.utils.data import TensorDataset, DataLoader, RandomSampler, SequentialSampler
+from torch.utils.data import (DataLoader, RandomSampler, SequentialSampler,
+                              TensorDataset)
+
+from Dataset import (GCCCLDataset, LongitudeMedRecDataset, MDCLDataset,
+                     MedRecommendDataset, GLongitudeMedRecDataset)
+from utils import collate_fn_distributor, read_npy, read_pkl, split
 
 
 class MedicalDataModule(pl.LightningDataModule):
@@ -32,7 +36,7 @@ class MedicalDataModule(pl.LightningDataModule):
         """
         根据不同的任务，即target值修改dataset组织方式
         """
-        if self.target in ["med_recommend", 'longitude_med_rec']:
+        if self.target in ["med_recommend", 'longitude_med_rec','g_longitude_med_rec']:
             self.train_dateset, self.valid_dataset, self.test_dataset = split(
                 self.data, self.train_ratio, self.test_ratio, self.valid_ratio, self.seed, self.shuffle)
         if self.target == "med_recommend":
@@ -51,6 +55,13 @@ class MedicalDataModule(pl.LightningDataModule):
                 self.valid_dataset, self.resource['vocab'])
             self.test_dataset = LongitudeMedRecDataset(
                 self.test_dataset, self.resource['vocab'])
+        elif self.target == 'g_longitude_med_rec':
+            self.train_dateset = GLongitudeMedRecDataset(
+                self.train_dateset, self.resource['vocab'], self.resource['ehr_adj'], **self.kwargs['gcc'])
+            self.valid_dataset = GLongitudeMedRecDataset(
+                self.valid_dataset, self.resource['vocab'], self.resource['ehr_adj'], **self.kwargs['gcc'])
+            self.test_dataset = GLongitudeMedRecDataset(
+                self.test_dataset, self.resource['vocab'], self.resource['ehr_adj'], **self.kwargs['gcc'])
         elif self.target == 'cl_pretrain':
             # self.train_dateset = MDCLDataset(self.train_dateset)
             # self.valid_dataset = MDCLDataset(self.valid_dataset)
@@ -60,10 +71,7 @@ class MedicalDataModule(pl.LightningDataModule):
             self.test_dataset = None
 
     def train_dataloader(self):
-        if self.target == "cl_pretrain":
-            return DataLoader(self.train_dateset, sampler=SequentialSampler(self.train_dateset), batch_size=self.batch_size, num_workers=self.num_workers, drop_last=True, collate_fn=graph_batcher())
-        else:
-            return DataLoader(self.train_dateset, sampler=SequentialSampler(self.train_dateset), batch_size=self.batch_size, num_workers=self.num_workers, drop_last=True)
+        return DataLoader(self.train_dateset, sampler=SequentialSampler(self.train_dateset), batch_size=self.batch_size, num_workers=self.num_workers, drop_last=True, collate_fn=collate_fn_distributor(self.target))
 
     def val_dataloader(self):
         return DataLoader(self.valid_dataset, sampler=SequentialSampler(self.valid_dataset), batch_size=self.batch_size, num_workers=self.num_workers, drop_last=True)

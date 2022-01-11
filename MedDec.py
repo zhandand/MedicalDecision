@@ -14,7 +14,7 @@ class MedDec(pl.LightningModule):
         exec('from model.' + self.model_name + " import "+self.model_name)
         self.model = eval(self.model_name)(self.kwargs['model'], self.resource)
         self.automatic_optimization = self.kwargs['automatic_optimization']
-        print("init model done...")
+        print("init model {} done...".format(self.model_name))
 
     def forward(self, x):
         return self.model(x)
@@ -28,8 +28,8 @@ class MedDec(pl.LightningModule):
         """
         y_hat, y = self.train_in_model(batch, batch_idx)
         if self.kwargs['model']['criterion'] == 'CE' or self.kwargs['model']['criterion'] == 'MSE':
-            # loss = self.criterion()(y_hat, y.float())
             loss = self.criterion()(y_hat, y)
+
         # elif self.kwargs['model']['criterion'] == 'InfoNCE':
         #     loss = self.criterion()(y_hat, self.kwargs['model']['t'],y,self.resource['pmd'][x,y])
         elif self.kwargs['model']['criterion'] == 'NCESoftmaxLoss':

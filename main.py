@@ -15,7 +15,7 @@ pipeline_dict = {
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config_path', type=str, default="./config/example.yaml",
+    parser.add_argument('--config_path', type=str, default="/mnt/4ta/gzzhan/projects/MedicalDecision/config/AggPretrain.yaml",
                         help="config path for experiment")
     args = parser.parse_args()
     config = read_config(args.config_path)

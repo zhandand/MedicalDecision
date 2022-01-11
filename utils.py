@@ -1,5 +1,4 @@
 import os
-import random
 from typing import List
 
 import dgl
@@ -8,6 +7,7 @@ import numpy as np
 import torch
 import yaml
 from sklearn.model_selection import train_test_split
+
 from MedDec import MedDec
 
 
@@ -115,7 +115,7 @@ def id2multihot(ids: List[int], vocab_size: int):
     """
     multi_hot = np.zeros(vocab_size, dtype=float)
     multi_hot[ids] = 1.0
-    return multi_hot.astype('float32')
+    return torch.tensor(multi_hot.astype('float32'))
 
 
 def load_sources(gpu, **configs):
@@ -144,6 +144,7 @@ def load_from_ckpt(ckpt_path, model):
         ckpt_path, map_location=lambda storage, loc: storage)
     model.load_state_dict(checkpoint['state_dict'])
 
+
 def load_pretrain(*args):
     # 加载预训练模型
     kwargs = args[0]
@@ -153,11 +154,59 @@ def load_pretrain(*args):
     load_from_ckpt(kwargs['save_path'], pretrain_model)
     return pretrain_model
 
-def graph_batcher():
-    # 为gcc的batch到训练部分前的操作
-    def batcher_dev(batch):
-        graph_q, graph_k = zip(*batch)
-        graph_q, graph_k = dgl.batch(graph_q), dgl.batch(graph_k)
-        return graph_q, graph_k
 
-    return batcher_dev
+def graph_batcher(batch):
+    # 为gcc的batch到训练部分前的操作
+    graph_q, graph_k = zip(*batch)
+    graph_q, graph_k = dgl.batch(graph_q), dgl.batch(graph_k)
+    return graph_q, graph_k
+
+
+def history_graph_batcher(batch):
+    visit_batch = []
+    target_batch = []
+    for patient in batch:
+        history, target = patient
+        visit_in_graph = []
+        for visit in history:
+            visit_in_graph.append(
+                [dgl.batch(visit[0]), visit[1].to("cuda:0"), visit[2].to("cuda:0")])
+        visit_batch.append(visit_in_graph)
+        target_batch.append(target)
+    return visit_batch, torch.stack(target_batch, axis=0)
+
+
+def collate_fn_distributor(type: str):
+    if type == "cl_pretrain":
+        return graph_batcher
+    elif type == "g_longitude_med_rec":
+        return history_graph_batcher
+    else:
+        return None
+
+
+def random_walk(g, nodes, hops, restart_prob):
+    """ 随机游走得到子图
+
+    Args:
+        g ([type]): 待采样的图
+        nodes ([type]): 起始节点
+        hops ([type]): 采样最远距离
+        restart_prob ([type]): 重开概率
+
+    Returns:
+        [type]: 采样得到的子图
+    """
+    traces, types = dgl.sampling.random_walk(
+        g, nodes, length=hops, restart_prob=restart_prob)
+    concat_vids, concat_types, lengths, offsets = dgl.sampling.pack_traces(
+        traces, types)
+    vids = concat_vids.split(lengths.tolist())
+    subgraphs = []
+    for vid in vids:
+        if len(vid == 1):
+            # 确保子图至少包含两个节点
+            subgraphs.append(random_walk(g, vid, hops, restart_prob)[0])
+        else:
+            subgraphs.append(g.subgraph(vid))
+    return subgraphs
