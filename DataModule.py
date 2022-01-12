@@ -36,7 +36,7 @@ class MedicalDataModule(pl.LightningDataModule):
         """
         根据不同的任务，即target值修改dataset组织方式
         """
-        if self.target in ["med_recommend", 'longitude_med_rec','g_longitude_med_rec']:
+        if self.target in ["med_recommend", 'longitude_med_rec', 'g_longitude_med_rec']:
             self.train_dateset, self.valid_dataset, self.test_dataset = split(
                 self.data, self.train_ratio, self.test_ratio, self.valid_ratio, self.seed, self.shuffle)
         if self.target == "med_recommend":
@@ -74,10 +74,10 @@ class MedicalDataModule(pl.LightningDataModule):
         return DataLoader(self.train_dateset, sampler=SequentialSampler(self.train_dateset), batch_size=self.batch_size, num_workers=self.num_workers, drop_last=True, collate_fn=collate_fn_distributor(self.target))
 
     def val_dataloader(self):
-        return DataLoader(self.valid_dataset, sampler=SequentialSampler(self.valid_dataset), batch_size=self.batch_size, num_workers=self.num_workers, drop_last=True)
+        return DataLoader(self.valid_dataset, sampler=SequentialSampler(self.valid_dataset), batch_size=self.batch_size, num_workers=self.num_workers, drop_last=True, collate_fn=collate_fn_distributor(self.target))
 
     def test_dataloader(self):
-        return DataLoader(self.test_dataset, sampler=SequentialSampler(self.test_dataset), batch_size=self.batch_size, num_workers=self.num_workers)
+        return DataLoader(self.test_dataset, sampler=SequentialSampler(self.test_dataset), batch_size=self.batch_size, num_workers=self.num_workers, collate_fn=collate_fn_distributor(self.target))
 
     def getData(self, path):
         if os.path.splitext(path)[-1] == '.pkl':
