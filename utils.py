@@ -204,7 +204,7 @@ def random_walk(g, nodes, hops, restart_prob):
     vids = concat_vids.split(lengths.tolist())
     subgraphs = []
     for vid in vids:
-        if len(vid == 1):
+        if len(vid) == 1:
             # 确保子图至少包含两个节点
             subgraphs.append(random_walk(g, vid, hops, restart_prob)[0])
         else:
